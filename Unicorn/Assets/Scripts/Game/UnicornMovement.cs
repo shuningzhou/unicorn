@@ -28,10 +28,35 @@ public class UnicornMovement : MonoBehaviour {
     {
     }
     // Update is called once per frame
-    void Update () {
-        move = Input.GetAxis("Vertical");
+    void Update () 
+	{
 
-        if (move == 1)
+		//desktop
+        float currentMove = Input.GetAxis("Vertical");
+		bool jump = Input.GetKeyDown (KeyCode.Space);
+
+		//mobile
+		foreach (Touch touch in Input.touches) 
+		{
+//			if (touch.phase != TouchPhase.Ended && touch.phase != TouchPhase.Canceled)
+//				fingerCount++;
+			if (touch.position.x < Screen.width / 2) 
+			{
+				//run
+				currentMove = 1;
+			} 
+			else
+			{
+				//jump
+				if (touch.phase == TouchPhase.Ended) 
+				{
+					jump = true;
+				}
+			}
+		}
+
+
+		if (currentMove == 1)
         {
             runSecounds = runSecounds + Time.deltaTime;
         }
@@ -40,7 +65,8 @@ public class UnicornMovement : MonoBehaviour {
             runSecounds = 0;
         }
 
-        anim.SetFloat("Speed", move);
+		anim.SetFloat("Speed", currentMove);
+
         float bonusSpeed = (runSecounds / unicornAcc);
         float walkSpeed = 0.25f * normalTopSpeed;
         float runSpeed = move * 0.75f * normalTopSpeed;
@@ -56,7 +82,7 @@ public class UnicornMovement : MonoBehaviour {
 
         transform.position = new Vector3(transform.position.x, transform.position.y, transform.position.z + currentSpeed * Time.deltaTime);
 
-        if (Input.GetKeyDown(KeyCode.Space))
+		if (jump)
         {
             AnimatorStateInfo stateInfo = anim.GetCurrentAnimatorStateInfo(0);
             if (stateInfo.fullPathHash != jumpStateHash )
