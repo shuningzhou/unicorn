@@ -12,12 +12,17 @@ public class UnicornMovement : MonoBehaviour {
 	float normalTopSpeed = 6.0f;
 	float maxBonusSpeed = 0;
 	bool inAir = false;
-	public GameObject feet;
+
 	float currentSpeed = 0;
 	float currentWalkSpeed = 0;
 	float currentRunSpeed = 0;
 	float currentBonusSpeed = 0;
 	float initialPosition = 0;
+	float turnRate = 60.0f;
+	float maxTurn = 60.0f;
+	float currentTurn = 0;
+	public float currentTurnRate = 60.0f;
+
 	// Use this for initialization
 	void Start () {
 		anim = GetComponent<Animator>();
@@ -33,107 +38,76 @@ public class UnicornMovement : MonoBehaviour {
 	{
 		//Debug.DrawRay (feet.transform.position, Vector3.down, Color.red, 1);
 		//desktop
-		float currentMove = Input.GetAxis("Vertical");
-		if (currentMove > 0) 
-		{
-			currentMove = 1f;
-		}
-		 
-		bool jump = false;
-		bool jump2 = false;
-		bool jump3 = false;
 
-		if (Input.inputString == "a") {
-			jump = true;
+		if (ChallengeManager.sharedManager.distance > 100 && currentTurnRate <  300)
+		{
+			currentTurnRate = turnRate + (ChallengeManager.sharedManager.distance - 100) / 6;
 		}
-		if (Input.inputString == "s") {
-			jump2 = true;
-		}
-		if (Input.inputString == "d") {
-			jump3 = true;
-		}
+
+		bool turnLeft = Input.GetKey (KeyCode.LeftArrow);
+		bool turnRight = Input.GetKey (KeyCode.RightArrow);
 
 		//mobile
-		foreach (Touch touch in Input.touches) 
-		{
-			//			if (touch.phase != TouchPhase.Ended && touch.phase != TouchPhase.Canceled)
-			//				fingerCount++;
-			if (touch.position.x < Screen.width / 2) 
+		foreach (Touch touch in Input.touches) {
+			if (touch.position.x < Screen.width/2)
 			{
-				//run
-				currentMove = 1;
-			} 
-			else
+				turnLeft = true;
+			}
+			else if (touch.position.x > Screen.width/2)
 			{
-				//jump
-				if (touch.phase == TouchPhase.Ended) 
-				{
-					jump3 = true;
-				}
+				turnRight = true;
 			}
 		}
 
-
-		if (currentMove == 1)
+		if (turnRight&&!turnLeft) {
+			float turn = currentTurnRate * Time.deltaTime;
+			doTurn (turn);
+		} else if (turnLeft&&!turnRight) {
+			float turn = currentTurnRate * Time.deltaTime;
+			doTurn (-turn);
+		} else if (turnLeft && turnRight) 
 		{
-			runSecounds = runSecounds + Time.deltaTime;
-		}
-		else
-		{
-			runSecounds = 0;
-		}
-
-		anim.SetFloat("Speed", currentMove);
-
-		currentBonusSpeed = (runSecounds / unicornAcc);
-		currentWalkSpeed = 0.1f * normalTopSpeed;
-		currentRunSpeed = 0.9f * normalTopSpeed;
-
-		if (currentBonusSpeed > maxBonusSpeed)
-		{
-			currentBonusSpeed = maxBonusSpeed;
-		}
-
-		currentSpeed = currentWalkSpeed + currentRunSpeed + currentBonusSpeed;
-
-		anim.SetFloat("RunSpeed", 1 + currentBonusSpeed / (normalTopSpeed * maxBonusSpeedRate));
-
-//		string text = " currentSpeed = " + currentSpeed.ToString () + "\n"
-//			+ " currentBonusSpeed = " + currentBonusSpeed.ToString () + "\n";
-//
-//		Debug.Log (text);
-
-		if (!inAir) 
-		{
-			if (jump)
+			if (!inAir) 
 			{
-				anim.SetFloat("JumpSpeed", 1);
-				doJump (4.0f, currentSpeed);
-			} 
-			else if (jump2) 
-			{
-				anim.SetFloat("JumpSpeed", 0.80f);
-				doJump (5.0f, currentSpeed);
-			} 
-			else if (jump3) 
-			{
-				anim.SetFloat("JumpSpeed", 0.65f);
-				doJump (6.0f, currentSpeed);
+				doJump ();
 			}
-			else 
-			{
-				transform.position = new Vector3 (transform.position.x, transform.position.y, transform.position.z + currentSpeed * Time.deltaTime);
+		} else {
+			if (currentTurn < - 3) {
+				float turn = currentTurnRate * Time.deltaTime;
+				doTurn (turn);
+			} else if (currentTurn > 3) {
+				float turn = currentTurnRate * Time.deltaTime;
+				doTurn (-turn);
+			} else {
+				currentTurn = 0;
+				gameObject.transform.rotation = Quaternion.identity;
 			}
 		}
+
+		ChallengeManager.sharedManager.currentGameSpeed = ChallengeManager.sharedManager.gameSpeed * Mathf.Cos (currentTurn * Mathf.Deg2Rad);
+
 	}
 
-	void doJump(float jumpSpeedY, float jumpSpeedZ)
+	void doTurn(float turn)
 	{
-		anim.SetBool ("Landed", false);
-		Vector3 jumpSpeed = new Vector3 (0, jumpSpeedY, jumpSpeedZ );
-		rb.velocity = rb.velocity + jumpSpeed;
+		float move = Mathf.Sin (currentTurn * Mathf.Deg2Rad) * ChallengeManager.sharedManager.gameSpeed * Time.deltaTime / 2.5f;
+
+		gameObject.transform.position = new Vector3 (gameObject.transform.position.x + move, gameObject.transform.position.y, gameObject.transform.position.z);
+
+		if ((currentTurn < -maxTurn  && turn < 0) || (currentTurn > maxTurn && turn > 0)) 
+		{
+			return;
+		}
+
+		transform.Rotate(0,turn,0);
+		currentTurn = currentTurn + turn;
+	}
+
+	void doJump()
+	{
 		inAir = true;
-		initialPosition = transform.position.z;
+		anim.SetBool("Landed", false);
+		rb.velocity = new Vector3 (0, 4.0f, 0 );
 	}
 
 	void OnCollisionEnter(Collision collision) {
@@ -141,9 +115,6 @@ public class UnicornMovement : MonoBehaviour {
 		{
 			anim.SetBool("Landed", true);
 			inAir = false;
-			Debug.Log ("Jump = " + (transform.position.z - initialPosition).ToString ());
-			rb.velocity = new Vector3 (0, 0, 0 );
-				
 		}
 	}
 }
